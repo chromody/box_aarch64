@@ -2,8 +2,12 @@
 //The box() function must be written in ARMv8 assembler.  The code below is given to get you started:
 
 .global     box
+.extern     putc_to //arguments are: unsigned int row, unsigned int col, const char c
 .extern     _term_txtheight
 .extern     _term_txtwidth
+
+.data
+    char_plus: .byte '+'
 
 box:
  //------------------------------------------------------------------Prologue
@@ -26,20 +30,21 @@ box:
     stp w0, w1, [sp]
     stp w2, w3, [sp, 16]
     bl      _box_check_box_
-    ldp w0, w1, [sp]
-    ldp w2, w3, [sp, 16]
-    add sp, sp, 32
-
 
     cmp     w0, 0
     bne     _box_error_
+
+    ldp w0, w1, [sp]
+    ldp w2, w3, [sp, 16]
+    add sp, sp, 32
 
  
     // first, draw the corners:
     // +        +
     // +        +
-    ldp     x0, x1, [sp]
-    ldp     x2, x3, [sp, 16]
+    sub sp, sp, 32
+    ldp     w0, w1, [sp]
+    ldp     w2, w3, [sp, 16]
     bl      _box_draw_corners_
 
     // Now, draw the top and bottom:
@@ -82,10 +87,10 @@ _box_exit_:
     //----------------------Getting max height
     sub sp, sp, 16
     stp x30, x0, [sp]
-    bl term_txtheight // calling function for max height\
+    bl term_txtheight // calling function for max height
 
-    sub sp, sp, 16
-    str x0, [sp]
+    sub sp, sp, 16 //making space on the stack
+    str x0, [sp] // to pass the result from x0 to x9
     ldr x9, [sp]
     add sp, sp, 16
 
@@ -108,6 +113,7 @@ _box_exit_:
     //----------------------
 
     //----------------------Checking for error
+    mov w0, 0
     cmp x2, x9 //comparing endRow max_width
     bge _box_check_box_error
 
@@ -127,8 +133,27 @@ _box_exit_:
     //
 
     _box_check_box_error:
+        add x0, x0, 1
         ldp     x29, x30, [sp], 16
         ret
 
  _box_draw_corners_:
+    //Prologue
+    //    save link and stack frame registers
+    //    load the stack frame with the pointer to current frame
+    ldp x29, x30, [sp, -16]!
+
+    ldp w0, w1, [sp, 16]
+    ldp w2, w3, [sp, 32]
+
+
+    adr x10, char_plus
+    ldrb w9, [x10]
+
+    sub sp, sp, 32
+    stp w0, w1, [sp]
+    str x9, [sp, 16]
+    bl putc_to
+
+
  	ret
