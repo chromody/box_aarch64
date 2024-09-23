@@ -1,13 +1,14 @@
 
 //The box() function must be written in ARMv8 assembler.  The code below is given to get you started:
+.section .data
+char_block: .byte '+'
 
-.global     box
 .extern     putc_to //arguments are: unsigned int row, unsigned int col, const char c
 .extern     _term_txtheight
 .extern     _term_txtwidth
 
-.data
-    char_plus: .byte '+'
+.section .text
+.global     box
 
 box:
  //------------------------------------------------------------------Prologue
@@ -46,14 +47,25 @@ box:
     ldp     w0, w1, [sp]
     ldp     w2, w3, [sp, 16]
     bl      _box_draw_corners_
+    add sp, sp, 32
 
     // Now, draw the top and bottom:
     // +------+
     // +------+
-
+    sub sp, sp, 32
+    ldp w0, w1, [sp]
+    ldp w2, w3, [sp, 16]
+    bl _box_draw_top_bottom_
+    add sp, sp, 32
+    
     // You figure out what goes here
-
+    
     // draw left and right sides
+    sub sp, sp, 32
+    ldp w0, w1, [sp]
+    ldp w2, w3, [sp, 16]
+    bl _box_draw_left_right_
+    add sp, sp, 32
 
     // You figure out what goes here
 
@@ -120,7 +132,7 @@ _box_exit_:
     cmp x3, x10 //comparing endColumn max_height
     bge _box_check_box_error
 
-    cmp x2, x0
+    cmp x2, x0 //checkiun
     blt _box_check_box_error
 
     cmp x3, x1
@@ -138,22 +150,227 @@ _box_exit_:
         ret
 
  _box_draw_corners_:
+
     //Prologue
     //    save link and stack frame registers
     //    load the stack frame with the pointer to current frame
-    ldp x29, x30, [sp, -16]!
-
+    stp x29, x30, [sp, -16]!
     ldp w0, w1, [sp, 16]
     ldp w2, w3, [sp, 32]
 
+    //--printing the top left corner (sr, sc)
+    sub sp, sp, 32 //saving w0 -> w3
+    stp w0, w1, [sp]
+    stp w2, w3, [sp, 16]
 
-    adr x10, char_plus
-    ldrb w9, [x10]
+    adr x10, char_block
+    ldrb w2, [x10]
+
+    sub sp, sp, 32
+    stp w0, w1, [sp] //w0 is start_row, w1 is start_column, w2 is the character we are printing
+    str w2, [sp, 16]
+    bl putc_to
+    ldp w0, w1, [sp]
+    ldr w2, [sp, 16]
+    add sp, sp, 32
+
+    ldp w0, w1, [sp] //restoring w0 -> w3
+    ldp w2, w3, [sp, 16]
+    add sp, sp, 32
+    //---------
+
+    //--printing the top right corner (er, sc)
+    sub sp, sp, 32 //saving w0 -> w3
+    stp w0, w1, [sp]
+    stp w2, w3, [sp, 16]
+
+    mov w0, w2 //we want to pass w2 as the end_row
+
+    adr x10, char_block
+    ldrb w2, [x10]
 
     sub sp, sp, 32
     stp w0, w1, [sp]
-    str x9, [sp, 16]
+    str w2, [sp, 16] //w0 is end row, w1 is start_column, w2 is the character we are printing
     bl putc_to
+    ldp w0, w1, [sp]
+    ldr w2, [sp, 16]
+    add sp, sp, 32
+
+    ldp w0, w1, [sp] //restoring w0 -> w3
+    ldp w2, w3, [sp, 16]
+    add sp, sp, 32
+    //
+
+    //--printing the bottom left corner (sr, ec)
+    sub sp, sp, 32 //saving w0 -> w3
+    stp w0, w1, [sp]
+    stp w2, w3, [sp, 16]
+
+    mov w1, w3
+
+    adr x10, char_block
+    ldrb w2, [x10]
+
+    sub sp, sp, 32
+    stp w0, w1, [sp]
+    str w2, [sp, 16] //w0 is start_row, w1 is end_column, w2 is the character we are printing
+    bl putc_to
+    ldp w0, w1, [sp]
+    ldr w2, [sp, 16]
+    add sp, sp, 32
+
+    ldp w0, w1, [sp] //restoring w0 -> w3
+    ldp w2, w3, [sp, 16]
+    add sp, sp, 32
+    //
+
+    //--printing the bottom left corner (er, ec)
+    sub sp, sp, 32 //saving w0 -> w3
+    stp w0, w1, [sp]
+    stp w2, w3, [sp, 16]
+
+    mov w0, w2
+    mov w1, w3
+
+    adr x10, char_block
+    ldrb w2, [x10]
+
+    sub sp, sp, 32
+    stp w0, w1, [sp]
+    str w2, [sp, 16] //w0 is end_row, w1 is end_colunmn, w2 is the character we are printing
+    bl putc_to
+    ldp w0, w1, [sp]
+    ldr w2, [sp, 16]
+    add sp, sp, 32
+
+    ldp w0, w1, [sp] //restoring w0 -> w3
+    ldp w2, w3, [sp, 16]
+    add sp, sp, 32
+    //
+
+    //Epilogue
+    ldp x29, x30, [sp], 16
+    ret
+
+_box_draw_top_bottom_:
+    //PROLOGUE
+    stp x29, x30, [sp, -16]!
+
+    mov w9, w0 //we are by start row
+    //add w9, 1 // we start ahead of sr
+    _box_draw_top_bottom_loop: // i = sr + i; i < er; ++i
+        //--printing top
+        sub sp, sp, 32 //saving w0 -> w3
+        stp w0, w1, [sp]
+        stp w2, w3, [sp, 16]
+
+        mov w0, w9
+        adr x10, char_block
+        ldrb w2, [x10]
+
+        sub sp, sp, 32
+        stp w0, w1, [sp] //w0 is our row, w1 is start_column, w2 is the character we are printing (sr + i, sc)
+        str w2, [sp, 16]
+        bl putc_to
+        ldp w0, w1, [sp]
+        ldr w2, [sp, 16]
+        add sp, sp, 32
+
+        ldp w0, w1, [sp] //restoring w0 -> w3
+        ldp w2, w3, [sp, 16]
+        add sp, sp, 32
+        //---------
+
+        //--printing bottom
+        sub sp, sp, 32 //saving w0 -> w3
+        stp w0, w1, [sp]
+        stp w2, w3, [sp, 16]
+
+        mov w0, w9
+        mov w1, w3
+        adr x10, char_block
+        ldrb w2, [x10]
+
+        sub sp, sp, 32
+        stp w0, w1, [sp] //w0 is our row, w1 is end_row, w2 is the character we are printing (sr + i, ec)
+        str w2, [sp, 16]
+        bl putc_to
+        ldp w0, w1, [sp]
+        ldr w2, [sp, 16]
+        add sp, sp, 32
+
+        ldp w0, w1, [sp] //restoring w0 -> w3
+        ldp w2, w3, [sp, 16]
+        add sp, sp, 32
+        //---------
 
 
- 	ret
+        add w9, w9, 1
+        cmp w9, w2
+        blt _box_draw_top_bottom_loop
+
+    //EPILOGUE
+    ldp x29, x30, [sp], 16
+    ret
+
+_box_draw_left_right_:
+    //PROLOGUE
+    stp x29, x30, [sp, -16]!
+
+    mov w9, w1 // we start at start column
+    _box_draw_left_right_loop: // i = sc + i; i < ec; ++i
+        //--printing left
+        sub sp, sp, 32 //saving w0 -> w3
+        stp w0, w1, [sp]
+        stp w2, w3, [sp, 16]
+
+        mov w1, w9
+        adr x10, char_block
+        ldrb w2, [x10]
+
+        sub sp, sp, 32
+        stp w0, w1, [sp] //w0 is start_row, w1 is our row, w2 is the character we are printing (sr, sc + i)
+        str w2, [sp, 16]
+        bl putc_to
+        ldp w0, w1, [sp]
+        ldr w2, [sp, 16]
+        add sp, sp, 32
+
+        ldp w0, w1, [sp] //restoring w0 -> w3
+        ldp w2, w3, [sp, 16]
+        add sp, sp, 32
+        //---------
+
+        //--printing right
+        sub sp, sp, 32 //saving w0 -> w3
+        stp w0, w1, [sp]
+        stp w2, w3, [sp, 16]
+
+        mov w0, w2
+        mov w1, w9
+        adr x10, char_block
+        ldrb w2, [x10]
+
+        sub sp, sp, 32
+        stp w0, w1, [sp] //w0 is end_row, w1 is our column, w2 is the character we are printing (er, sc + i)
+        str w2, [sp, 16]
+        bl putc_to
+        ldp w0, w1, [sp]
+        ldr w2, [sp, 16]
+        add sp, sp, 32
+
+        ldp w0, w1, [sp] //restoring w0 -> w3
+        ldp w2, w3, [sp, 16]
+        add sp, sp, 32
+        //---------
+
+
+        add w9, w9, 1
+        cmp w9, w3 // we end at end column
+        blt _box_draw_left_right_loop
+
+    //EPILOGUE
+    ldp x29, x30, [sp], 16
+    ret
+
