@@ -1,16 +1,27 @@
+/*
+Author: Jesus
+box.S
+Purpose: To draw a box based on user inputs (w0, w1, w2, w3)
+CSC-4100, 001
+*/
 
 //The box() function must be written in ARMv8 assembler.  The code below is given to get you started:
-.section .data
+.section .data //user function for data. We will print + for our box
 char_block: .byte '+'
 
 .extern     putc_to //arguments are: unsigned int row, unsigned int col, const char c
-.extern     _term_txtheight
-.extern     _term_txtwidth
+.extern     _term_txtheight //function to find height of terminal
+.extern     _term_txtwidth //function to find width of terminal
 
 .section .text
 .global     box
 
-box:
+/*
+	Name: box
+	Arguments: w0(srow), w1(scol), w2(erow), w3(ecol)
+	Purpose: Takes in the row and column boundaries and prints a box in those boundaries
+*/
+box: 
  //------------------------------------------------------------------Prologue
     // standard entry: save link and stack frame registers
     //    load the stack frame with the pointer to current frame
@@ -35,7 +46,7 @@ box:
     cmp     w0, 0
     bne     _box_error_
 
-    ldp w0, w1, [sp]
+    ldp w0, w1, [sp] //restoring stack and registers
     ldp w2, w3, [sp, 16]
     add sp, sp, 32
 
@@ -43,37 +54,38 @@ box:
     // first, draw the corners:
     // +        +
     // +        +
-    sub sp, sp, 32
+    sub sp, sp, 32//passing values on stack
     ldp     w0, w1, [sp]
     ldp     w2, w3, [sp, 16]
     bl      _box_draw_corners_
-    add sp, sp, 32
+    add sp, sp, 32//restoring stack
 
     // Now, draw the top and bottom:
     // +------+
     // +------+
-    sub sp, sp, 32
+    sub sp, sp, 32//passing values
     ldp w0, w1, [sp]
     ldp w2, w3, [sp, 16]
     bl _box_draw_top_bottom_
-    add sp, sp, 32
+    add sp, sp, 32//restoring stack
     
     // You figure out what goes here
+    //?? not sure it works though
     
     // draw left and right sides
-    sub sp, sp, 32
+    sub sp, sp, 32//passing values
     ldp w0, w1, [sp]
     ldp w2, w3, [sp, 16]
     bl _box_draw_left_right_
-    add sp, sp, 32
+    add sp, sp, 32//restoring stack
 
     // You figure out what goes here
 
-    mov     w0, 0
+    mov     w0, 0//returning 0 if no errors
     b       _box_exit_
 
 _box_error_:
-    mov     w0, 1
+    mov     w0, 1//returning 1 if errors
 
 _box_exit_:
     add     sp, sp, 32   // pop save arg regs
@@ -103,7 +115,7 @@ _box_exit_:
 
     sub sp, sp, 16 //making space on the stack
     str x0, [sp] // to pass the result from x0 to x9
-    ldr x9, [sp]
+    ldr x9, [sp] // mov instruction wouldn't pass it ??
     add sp, sp, 16
 
     ldp x30, x0, [sp]
@@ -115,7 +127,7 @@ _box_exit_:
     stp x30, x0, [sp]
     bl term_txtwidth // calling function for max height\
 
-    sub sp, sp, 16
+    sub sp, sp, 16 //again passing the result to x10 via the stack
     str x0, [sp]
     ldr x10, [sp]
     add sp, sp, 16
@@ -149,6 +161,13 @@ _box_exit_:
         ldp     x29, x30, [sp], 16
         ret
 
+
+/*
+    Inputs: startRow, startColumn, endRow, endColumn
+    Purpose: to print the corners of the box
+    Functions called: putc_to()
+    Total registers: sp, x0, x30(link register), w0 (startRow), w1(startColumn), w2(endRow), w3(endColumn)
+*/
  _box_draw_corners_:
 
     //Prologue
@@ -159,14 +178,14 @@ _box_exit_:
     ldp w2, w3, [sp, 32]
 
     //--printing the top left corner (sr, sc)
-    sub sp, sp, 32 //saving w0 -> w3
-    stp w0, w1, [sp]
-    stp w2, w3, [sp, 16]
+    sub sp, sp, 32 //saving w0 -> w3 registers as the putc_to function edits these registers
+    stp w0, w1, [sp] // I guess I should save x0->x8 as these can be edited, but that would be like 80 bits on the stack thats crazy
+    stp w2, w3, [sp, 16] //maybe I'm doing this wrong if I am please tell me
 
-    adr x10, char_block
-    ldrb w2, [x10]
+    adr x10, char_block //getting the char +
+    ldrb w2, [x10] //loading that into w2 to pass to putc_to
 
-    sub sp, sp, 32
+    sub sp, sp, 32 //preparing to call putc_to
     stp w0, w1, [sp] //w0 is start_row, w1 is start_column, w2 is the character we are printing
     str w2, [sp, 16]
     bl putc_to
@@ -253,6 +272,13 @@ _box_exit_:
     ldp x29, x30, [sp], 16
     ret
 
+
+/*
+    Inputs: startRow, startColumn, endRow, endColumn
+    Purpose: to print the top and bottom of the box
+    Functions called: putc_to
+    Total registers: sp, x0, x30(link register), w0 (startRow), w1(startColumn), w2(endRow), w3(endColumn)
+*/
 _box_draw_top_bottom_:
     //PROLOGUE
     stp x29, x30, [sp, -16]!
@@ -314,6 +340,12 @@ _box_draw_top_bottom_:
     ldp x29, x30, [sp], 16
     ret
 
+/*
+    Inputs: startRow, startColumn, endRow, endColumn
+    Purpose: to print the left and right portion of the box
+    Functions called: putc_to()
+    Total registers: sp, x0, x30(link register), w0 (startRow), w1(startColumn), w2(endRow), w3(endColumn)
+*/
 _box_draw_left_right_:
     //PROLOGUE
     stp x29, x30, [sp, -16]!
